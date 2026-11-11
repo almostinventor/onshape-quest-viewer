@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Send to Quest",
+  "version": "1.0.0",
+  "description": "Send the open Onshape Part Studio to the Quest viewer.",
+  "action": {
+    "default_title": "Send to Quest (Alt+Q)"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["scripting", "storage"],
+  "host_permissions": ["https://*.onshape.com/*", "http://127.0.0.1:8723/*"],
+  "optional_host_permissions": ["http://*/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://*.onshape.com/documents/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+Q" },
+      "description": "Send the current Onshape tab to the Quest viewer"
+    }
+  }
+}
