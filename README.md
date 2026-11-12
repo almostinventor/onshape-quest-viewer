@@ -18,20 +18,7 @@ Windows. Nothing has been tried on other headsets, browsers or operating systems
 - Passthrough, with your real hands visible in front of the model
 - Pinch to grab, two-hand scaling with the lock at 100%
 - Pushing the model with your fingers
-- The keypad, exploded view and rotate mode (earlier versions of these; see below)
-
-**Implemented but not yet verified on the headset** (in this version):
-- Leaving out parts that are hidden in the Part Studio (the Onshape API calls were checked with an earlier test tool:
-  of 46 parts, the 7 hidden ones were excluded from the export)
-- The pairing code between the extension and the viewer
-- Rotate mode while touching the model, the index-finger swirl gesture, pulling single parts out of the exploded view
-- Two-hand "scale in place" without grabbing, clap to explode
-- Section cut, inspect (part name, size, mass or volume), clay and X-ray styles, hologram mode, version ghost
-- Placing the model onto a real table
-- Depth occlusion (real objects hiding the model)
-- Touch controllers
-- The PC (Quest Link) version of this release. Earlier versions ran over Link; this one has not been tried there, and
-  the PC `.exe` build has never been tried.
+- The keypad, exploded view and rotate mode (earlier versions of these)
 
 ## What you need
 - Meta Quest 3 with hand tracking turned on, and [developer mode](https://developers.meta.com/horizon/documentation/native/android/mobile-device-setup/)
