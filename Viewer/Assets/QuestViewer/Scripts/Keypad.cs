@@ -23,6 +23,7 @@ public class Keypad : MonoBehaviour
 
     KeypadButton holo, style, lighting, explode, turntable, cut, measure, inspect, reset;
     TextMesh scaleText, infoText;
+    ModelServer server;
     AudioSource audioSource;
     AudioClip click;
 
@@ -128,7 +129,12 @@ public class Keypad : MonoBehaviour
         else if (ViewModes.Inspect) info = "INSPECT\ntouch a part";
         else if (ViewModes.Measure) info = "MEASURE\npinch with both hands";
         else if (ViewModes.Cut) info = "CUT\npinch the frame to move it";
-        else info = host != null && host.HasModel ? host.CurrentName : "Send a Part Studio";
+        else
+        {
+            if (server == null) server = FindAnyObjectByType<ModelServer>();
+            string pairing = server != null ? server.PairingInfo.Replace("\n", "  ") : "";
+            info = host != null && host.HasModel ? host.CurrentName + "\n" + pairing : server != null ? server.PairingInfo : "";
+        }
         infoText.text = Fit(info, 28);
         infoText.color = color;
     }

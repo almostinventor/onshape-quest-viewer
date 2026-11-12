@@ -49,7 +49,32 @@ public static class QuestViewerSetup
             Debug.LogError("[QuestViewerSetup] Install Android Build Support (with SDK, NDK and OpenJDK) for this Unity version in Unity Hub.");
             return;
         }
-        Build(BuildTarget.Android, "Builds/Android/OnshapeQuestViewer.apk");
+        // Release signing: set QV_KEYSTORE, QV_KEYSTORE_PASS, QV_KEY_ALIAS (and optionally QV_KEY_PASS) in the
+        // environment. Used for this build only, never saved into the project. Without them: debug signing.
+        string keystore = System.Environment.GetEnvironmentVariable("QV_KEYSTORE");
+        bool release = !string.IsNullOrEmpty(keystore) && System.IO.File.Exists(keystore);
+        if (release)
+        {
+            PlayerSettings.Android.useCustomKeystore = true;
+            PlayerSettings.Android.keystoreName = keystore;
+            PlayerSettings.Android.keystorePass = System.Environment.GetEnvironmentVariable("QV_KEYSTORE_PASS");
+            PlayerSettings.Android.keyaliasName = System.Environment.GetEnvironmentVariable("QV_KEY_ALIAS");
+            PlayerSettings.Android.keyaliasPass = System.Environment.GetEnvironmentVariable("QV_KEY_PASS")
+                                                  ?? System.Environment.GetEnvironmentVariable("QV_KEYSTORE_PASS");
+        }
+        try
+        {
+            Build(BuildTarget.Android, "Builds/Android/OnshapeQuestViewer.apk");
+            Debug.Log($"[QuestViewerSetup] Signed with {(release ? "the release key" : "the debug key")}.");
+        }
+        finally
+        {
+            PlayerSettings.Android.useCustomKeystore = false;
+            PlayerSettings.Android.keystoreName = "";
+            PlayerSettings.Android.keystorePass = "";
+            PlayerSettings.Android.keyaliasName = "";
+            PlayerSettings.Android.keyaliasPass = "";
+        }
     }
 
     static void Build(BuildTarget target, string path)
@@ -149,6 +174,8 @@ public static class QuestViewerSetup
         PlayerSettings.companyName = CompanyName;
         PlayerSettings.bundleVersion = Version;
         PlayerSettings.Android.bundleVersionCode = VersionCode;
+        var icon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/QuestViewer/Icons/AppIcon.png");
+        if (icon != null) PlayerSettings.SetIcons(NamedBuildTarget.Unknown, new[] { icon }, IconKind.Any);
         PlayerSettings.runInBackground = true;
         PlayerSettings.visibleInBackground = true;
         PlayerSettings.colorSpace = ColorSpace.Linear;

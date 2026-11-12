@@ -5,10 +5,12 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using UnityEngine;
 
-/// HTTP endpoint for the "Send to Quest" extension (port 8723):
-///   GET  /status  -> {"ok":true,"model":"…","key":"…","address":"…"}
+/// HTTP endpoint for the "Send to Quest" extension (port 8723). Every request must carry the pairing code
+/// (header X-Pair-Code) shown on the keypad display; anything else gets 401.
+///   GET  /status  -> {"ok":true,"model":"…","key":"…"}
 ///   POST /notify  {"state":"downloading|error|unchanged","message":"…"}  -> shows it in the headset
-///   POST /model   binary glTF body, headers X-Model-Name / X-Model-Key / X-Hidden-Parts -> loads it, replies when shown
+///   POST /model   binary glTF body, headers X-Model-Name / X-Model-Key / X-Hidden-Parts / X-Part-Info
+///                 -> loads it, replies when shown
 /// On PC it listens on localhost only; on Quest on the local network, so Chrome on the PC can reach it.
 public class ModelServer : MonoBehaviour
 {
@@ -32,6 +34,7 @@ public class ModelServer : MonoBehaviour
     {
         bool lan = Application.platform == RuntimePlatform.Android;
         address = (lan ? LocalIPv4() ?? "?" : "127.0.0.1") + ":" + Port;
+        _ = PairingCode.Value; // create/load on the main thread before requests arrive
         try
         {
             server = new MiniHttpServer(lan ? IPAddress.Any : IPAddress.Loopback, Port, Handle);
@@ -48,8 +51,11 @@ public class ModelServer : MonoBehaviour
     void Start()
     {
         if (server == null) Status.Error($"Port {Port} in use");
-        else Status.Info(Application.platform == RuntimePlatform.Android ? $"Viewer address\n{address}" : "Ready", 30f);
+        else Status.Info(PairingInfo, 60f);
     }
+
+    /// What to enter in the extension's options.
+    public string PairingInfo => $"{address}\npair code {PairingCode.Value}";
 
     void OnDisable()
     {
@@ -75,10 +81,13 @@ public class ModelServer : MonoBehaviour
 
     async Task<MiniHttpServer.Response> Handle(MiniHttpServer.Request req)
     {
+        if (!PairingCode.Matches(req.Header("X-Pair-Code")))
+            return MiniHttpServer.Response.Json(401, "{\"ok\":false,\"pairing\":true,\"message\":\"Wrong or missing pairing code.\"}");
+
         if (req.Method == "GET" && req.Path == "/status")
         {
             return MiniHttpServer.Response.Json(200,
-                $"{{\"ok\":true,\"model\":{Json(modelName)},\"key\":{Json(modelKey)},\"address\":{Json(address)},\"loading\":{(loading ? "true" : "false")}}}");
+                $"{{\"ok\":true,\"model\":{Json(modelName)},\"key\":{Json(modelKey)},\"loading\":{(loading ? "true" : "false")}}}");
         }
 
         if (req.Method == "POST" && req.Path == "/notify")

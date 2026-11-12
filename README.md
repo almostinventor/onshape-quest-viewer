@@ -27,9 +27,16 @@ version swaps in.
 
 ### 2. Chrome extension
 1. Open `chrome://extensions`, enable **Developer mode**, click **Load unpacked** and pick the `extension` folder.
-2. For the Quest app: start it, then enter the address it shows (for example `192.168.1.42:8723`) in the
-   extension's **Options**. The PC and Quest must be on the same network. For the PC version, keep the default
+2. Start the viewer. Its keypad display shows an **address** and a 6-character **pairing code**. Enter both in the
+   extension's **Options** (right-click the icon → Options) and click **Save**, then **Test connection**.
+   For the Quest app the PC and Quest must be on the same network; for the PC version the address is
    `127.0.0.1:8723`.
+
+### Security notes
+- The viewer only accepts requests carrying its pairing code, and sends no CORS headers, so websites can't use it.
+- The extension reads Onshape with your existing browser login, read-only, and only sends the model to the
+  viewer address you set. No API keys are stored anywhere.
+- Models travel from the PC to the Quest unencrypted over your local network; use it on a network you trust.
 
 ## Use
 In an Onshape Part Studio, click the **Send to Quest** toolbar icon or press **Alt+Q**. If nothing changed since

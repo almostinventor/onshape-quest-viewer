@@ -3,8 +3,17 @@
   "name": "Send to Quest",
   "version": "1.0.0",
   "description": "Send the open Onshape Part Studio to the Quest viewer.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
-    "default_title": "Send to Quest (Alt+Q)"
+    "default_title": "Send to Quest (Alt+Q)",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
   },
   "background": {
     "service_worker": "background.js"

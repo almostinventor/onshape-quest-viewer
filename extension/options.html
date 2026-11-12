@@ -4,19 +4,25 @@
   <meta charset="utf-8">
   <title>Send to Quest</title>
   <style>
-    body { font: 14px system-ui, sans-serif; margin: 16px; min-width: 360px; color: #222; }
-    label { display: block; font-weight: 600; margin-bottom: 6px; }
+    body { font: 14px system-ui, sans-serif; margin: 24px; max-width: 460px; color: #222; }
+    label { display: block; font-weight: 600; margin: 14px 0 6px; }
     input { width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; }
-    .row { display: flex; gap: 8px; margin-top: 10px; }
+    #pairCode { text-transform: uppercase; letter-spacing: 2px; }
+    .row { display: flex; gap: 8px; margin-top: 14px; }
     button { padding: 6px 14px; font: inherit; cursor: pointer; }
     p { color: #555; margin: 6px 0 0; }
-    #status { margin-top: 10px; min-height: 1.4em; }
+    #status { margin-top: 12px; min-height: 1.4em; }
   </style>
 </head>
 <body>
   <label for="viewer">Viewer address</label>
-  <input id="viewer" placeholder="127.0.0.1:8723">
-  <p>PC viewer: <code>127.0.0.1:8723</code>. Quest: the address shown in the headset when the app starts.</p>
+  <input id="viewer" placeholder="127.0.0.1:8723" autocomplete="off">
+  <p>Shown on the viewer's keypad display. PC viewer: <code>127.0.0.1:8723</code>.</p>
+
+  <label for="pairCode">Pairing code</label>
+  <input id="pairCode" placeholder="ABC123" maxlength="6" autocomplete="off" spellcheck="false">
+  <p>The 6-character code on the keypad display. Only an extension with this code can send to your viewer.</p>
+
   <div class="row">
     <button id="save">Save</button>
     <button id="test">Test connection</button>
