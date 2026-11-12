@@ -105,12 +105,15 @@ public static class QuestViewerSetup
             // Meta Depth API (real objects hide the model) on standalone Quest.
             Enable(oxr.GetFeature<UnityEngine.XR.OpenXR.Features.Meta.ARSessionFeature>());
             Enable(oxr.GetFeature<UnityEngine.XR.OpenXR.Features.Meta.AROcclusionFeature>());
+            // Room surfaces (tables) for dropping the model onto them.
+            Enable(oxr.GetFeature<UnityEngine.XR.OpenXR.Features.Meta.ARPlaneFeature>());
         }
         else
         {
-            // The depth path is standalone-only; keep the PC (Link) version as it was.
+            // Depth and room surfaces are standalone-only; keep the PC (Link) version as it was.
             Disable(oxr.GetFeature<UnityEngine.XR.OpenXR.Features.Meta.ARSessionFeature>());
             Disable(oxr.GetFeature<UnityEngine.XR.OpenXR.Features.Meta.AROcclusionFeature>());
+            Disable(oxr.GetFeature<UnityEngine.XR.OpenXR.Features.Meta.ARPlaneFeature>());
         }
         EditorUtility.SetDirty(oxr);
         EditorUtility.SetDirty(perTarget);
@@ -225,13 +228,7 @@ public static class QuestViewerSetup
         };
         mask.holeMaterial = HoleMaterial();
 
-        var tape = rig.AddComponent<TapeMeasure>();
-        tape.left = left;
-        tape.right = right;
-        tape.head = centerEye;
-        tape.lineMaterial = UnlitMaterial("Assets/QuestViewer/TapeLine.mat", new Color(1f, 0.85f, 0.3f));
-
-        // Controllers: grab/scale with grips, buttons for recall/HUD/hologram, models from Meta's prefab.
+        // Controllers: grab/scale with grips, buttons for recall/explode/hologram, models from Meta's prefab.
         AddController(FindDeep(trackingSpace, "LeftControllerAnchor"), OVRInput.Controller.LTouch);
         AddController(FindDeep(trackingSpace, "RightControllerAnchor"), OVRInput.Controller.RTouch);
 
@@ -239,9 +236,11 @@ public static class QuestViewerSetup
         lighting.keyLight = light;
         lighting.head = centerEye;
 
-        new GameObject("Hud").AddComponent<Hud>().head = centerEye;
-        var hologram = HologramMaterial();
-        HudMaterials();
+        var partMat = ShaderMaterial("Part", "QuestViewer/Part");
+        var xrayMat = ShaderMaterial("XRay", "QuestViewer/XRay");
+        var hologramMat = ShaderMaterial("Hologram", "QuestViewer/Hologram");
+        var tapeMat = UnlitMaterial("Assets/QuestViewer/Materials/TapeLine.mat", new Color(1f, 0.85f, 0.3f));
+        var cutMat = UnlitMaterial("Assets/QuestViewer/Materials/CutFrame.mat", new Color(1f, 0.55f, 0.25f));
 
         // 100 mm test cube, shown until the first model arrives.
         var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -250,50 +249,75 @@ public static class QuestViewerSetup
         cube.transform.position = new Vector3(0, 1.2f, 0.4f);
         cube.GetComponent<Renderer>().sharedMaterial = CubeMaterial();
         AddFloatingBody(cube);
-        cube.AddComponent<Grabbable>();
+        var cubeGrab = cube.AddComponent<Grabbable>();
         cube.AddComponent<SpawnInFront>().head = centerEye;
-        cube.AddComponent<ModelLook>().hologramTemplate = hologram;
+        SetLook(cube.AddComponent<ModelLook>(), partMat, xrayMat, hologramMat);
+        cube.AddComponent<TableSnap>();
 
         // The Onshape model and the server the extension sends it to.
         var model = new GameObject("Model");
         AddFloatingBody(model);
-        model.AddComponent<Grabbable>();
+        var modelGrab = model.AddComponent<Grabbable>();
         model.AddComponent<BoxCollider>();
         model.AddComponent<SpawnInFront>().head = centerEye;
-        model.AddComponent<ModelLook>().hologramTemplate = hologram;
+        var look = model.AddComponent<ModelLook>();
+        SetLook(look, partMat, xrayMat, hologramMat);
         var host = model.AddComponent<ModelHost>();
         host.placeholder = cube;
+        model.AddComponent<ModelMotion>();
+        model.AddComponent<TableSnap>();
         new GameObject("ModelServer").AddComponent<ModelServer>().host = host;
 
-        var info = new GameObject("InfoHud").AddComponent<InfoHud>();
-        info.head = centerEye;
-        info.host = host;
-        info.model = model.GetComponent<Grabbable>();
+        // Two-hand air pinch: Iron Man scaling, or the tape measure in MEASURE mode.
+        var air = rig.AddComponent<TwoHandAir>();
+        air.left = left;
+        air.right = right;
+        air.head = centerEye;
+        air.lineMaterial = tapeMat;
+        air.model = modelGrab;
+        air.modelHost = host;
+        air.placeholder = cubeGrab;
 
-        var visor = new GameObject("VisorHud").AddComponent<VisorHud>();
-        visor.head = centerEye;
-        visor.model = model.GetComponent<Grabbable>();
+        var clap = rig.AddComponent<ClapDetector>();
+        clap.left = left.GetComponent<TrackedHand>();
+        clap.right = right.GetComponent<TrackedHand>();
 
-        // Keypad (HOLO / HUD / LIGHT), placed low on your left like a desk panel; pinch to move it.
-        var keypad = new GameObject("Keypad");
-        keypad.AddComponent<Grabbable>().allowScale = false;
-        var keypadSpawn = keypad.AddComponent<SpawnInFront>();
+        var inspector = rig.AddComponent<PartInspector>();
+        inspector.left = left.GetComponent<TrackedHand>();
+        inspector.right = right.GetComponent<TrackedHand>();
+        inspector.host = host;
+        inspector.look = look;
+
+        var cutGo = new GameObject("CutPlane");
+        cutGo.AddComponent<Grabbable>().allowScale = false;
+        var cut = cutGo.AddComponent<CutPlane>();
+        cut.head = centerEye;
+        cut.host = host;
+        cut.placeholder = cube.transform;
+        cut.frameMaterial = cutMat;
+
+        new GameObject("PlaneTracker").AddComponent<PlaneTracker>().trackingSpace = trackingSpace;
+
+        // Keypad with display, placed low on your left like a desk panel; pinch to move it.
+        var keypadGo = new GameObject("Keypad");
+        keypadGo.AddComponent<Grabbable>().allowScale = false;
+        var keypadSpawn = keypadGo.AddComponent<SpawnInFront>();
         keypadSpawn.head = centerEye;
         keypadSpawn.distance = 0.33f;
-        keypadSpawn.belowEyes = 0.32f;
+        keypadSpawn.belowEyes = 0.30f;
         keypadSpawn.sideways = -0.2f;
         keypadSpawn.tiltDegrees = 40f;
         keypadSpawn.recallable = false;
-        keypad.AddComponent<Keypad>();
+        var keypad = keypadGo.AddComponent<Keypad>();
+        keypad.host = host;
+        keypad.model = modelGrab;
+        keypad.placeholder = cubeGrab;
 
-        // Depth occlusion (standalone Quest): Meta's depth manager plus material conversion for models.
+        // Depth occlusion (standalone Quest): Meta's depth manager; the model shaders read it.
         var depthGo = new GameObject("DepthOcclusion");
         var depthManager = depthGo.AddComponent<Meta.XR.EnvironmentDepth.EnvironmentDepthManager>();
         SetBool(depthManager, "_removeHands", true); // hands use the hand mask instead
-        var depth = depthGo.AddComponent<DepthOcclusion>();
-        depth.depthManager = depthManager;
-        depth.occlusionTemplate = OcclusionMaterial();
-        depth.alsoApplyTo = new[] { cube };
+        depthGo.AddComponent<DepthOcclusion>().depthManager = depthManager;
 
         System.IO.Directory.CreateDirectory("Assets/QuestViewer/Scenes");
         EditorSceneManager.SaveScene(scene, ScenePath);
@@ -336,14 +360,14 @@ public static class QuestViewerSetup
         }
     }
 
-    /// Floating physics body: no gravity, gently damped, so fingers can push it and throws glide to a stop.
+    /// Floating physics body: no gravity and strongly damped, so a push nudges it and it stops quickly.
     static void AddFloatingBody(GameObject go)
     {
         var rb = go.AddComponent<Rigidbody>();
         rb.useGravity = false;
         rb.mass = 1f;
-        rb.linearDamping = 1.2f;
-        rb.angularDamping = 1.6f;
+        rb.linearDamping = 6f;
+        rb.angularDamping = 8f;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
     }
@@ -364,38 +388,28 @@ public static class QuestViewerSetup
         Debug.LogError($"[QuestViewerSetup] No free layer for '{name}'.");
     }
 
-    /// Hologram look (QuestViewer/Hologram). Lives in Resources so the shader is kept in builds.
-    static Material HologramMaterial()
+    /// Material asset for one of our shaders (referenced from the scene, so the shader is kept in builds).
+    static Material ShaderMaterial(string name, string shaderName)
     {
-        const string dir = "Assets/QuestViewer/Resources/Hologram";
-        const string path = dir + "/Hologram.mat";
+        const string dir = "Assets/QuestViewer/Materials";
         System.IO.Directory.CreateDirectory(dir);
+        var path = $"{dir}/{name}.mat";
         var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (mat == null)
         {
-            mat = new Material(Shader.Find("QuestViewer/Hologram"));
+            var shader = Shader.Find(shaderName);
+            if (shader == null) { Debug.LogError($"[QuestViewerSetup] Shader {shaderName} not found."); return null; }
+            mat = new Material(shader);
             AssetDatabase.CreateAsset(mat, path);
         }
         return mat;
     }
 
-    /// Always-on-top HUD materials, loaded at runtime from Resources/Hud.
-    static void HudMaterials()
+    static void SetLook(ModelLook look, Material part, Material xray, Material hologram)
     {
-        const string dir = "Assets/QuestViewer/Resources/Hud";
-        System.IO.Directory.CreateDirectory(dir);
-        foreach (var (file, shader) in new[] { ("HudLine", "QuestViewer/HudLine"), ("HudText", "QuestViewer/HudText") })
-        {
-            var path = $"{dir}/{file}.mat";
-            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (mat == null)
-            {
-                mat = new Material(Shader.Find(shader));
-                AssetDatabase.CreateAsset(mat, path);
-            }
-            mat.SetColor("_Color", Color.white); // colours come from vertex colours
-            EditorUtility.SetDirty(mat);
-        }
+        look.partTemplate = part;
+        look.xrayTemplate = xray;
+        look.hologramTemplate = hologram;
     }
 
     static OVRMeshRenderer AddHandMesh(Transform anchor, bool left)
@@ -431,23 +445,6 @@ public static class QuestViewerSetup
         so.ApplyModifiedPropertiesWithoutUndo();
     }
 
-    /// Template for occlusion-aware model materials. Lives in Resources so the shader is kept in builds.
-    static Material OcclusionMaterial()
-    {
-        const string dir = "Assets/QuestViewer/Resources/Occlusion";
-        const string path = dir + "/OcclusionLit.mat";
-        System.IO.Directory.CreateDirectory(dir);
-        var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
-        if (mat == null)
-        {
-            var shader = Shader.Find("EnvironmentDepth/OcclusionLit");
-            if (shader == null) { Debug.LogError("[QuestViewerSetup] EnvironmentDepth/OcclusionLit shader not found."); return null; }
-            mat = new Material(shader);
-            AssetDatabase.CreateAsset(mat, path);
-        }
-        return mat;
-    }
-
     static Material HoleMaterial()
     {
         const string path = "Assets/QuestViewer/HandMask.mat";
@@ -464,6 +461,7 @@ public static class QuestViewerSetup
 
     static Material UnlitMaterial(string path, Color color)
     {
+        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
         var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (mat == null)
         {

@@ -2,7 +2,8 @@ using UnityEngine;
 using UnityEngine.XR.Hands;
 
 /// Physics colliders on the finger joints and palm, so an open hand or pointing finger pushes floating objects.
-/// Pushing pauses while the hand closes for a pinch or grip. The index tip also presses keypad buttons.
+/// Pushing pauses while the hand closes for a pinch or grip, while it holds something, and briefly after a release.
+/// The index tip also presses keypad buttons.
 [RequireComponent(typeof(TrackedHand))]
 public class FingerColliders : MonoBehaviour
 {
@@ -19,7 +20,11 @@ public class FingerColliders : MonoBehaviour
         XRHandJointID.Palm,
     };
 
+    [Tooltip("Seconds after letting go before this hand pushes again.")]
+    public float releaseGrace = 0.4f;
+
     TrackedHand hand;
+    Grabber grabber;
     Rigidbody[] bodies;
     Collider[] colliders;
     GameObject poker;
@@ -27,6 +32,7 @@ public class FingerColliders : MonoBehaviour
     void Awake()
     {
         hand = GetComponent<TrackedHand>();
+        grabber = GetComponent<Grabber>();
         int layer = LayerMask.NameToLayer(Grabber.HandsLayerName);
         if (layer >= 0) Physics.IgnoreLayerCollision(layer, layer);
         Time.fixedDeltaTime = 1f / 72f; // physics in step with the display for smooth pushing
@@ -64,7 +70,9 @@ public class FingerColliders : MonoBehaviour
     void FixedUpdate()
     {
         bool tracked = hand.IsTracked;
-        bool push = tracked && !hand.IsClosing;
+        // A pinch or grip always wins: no pushing while this hand holds something, or just after letting go.
+        bool holding = grabber != null && (grabber.Held != null || Time.time - grabber.LastReleaseTime < releaseGrace);
+        bool push = tracked && !hand.IsClosing && !holding;
         for (int i = 0; i < Joints.Length; i++)
         {
             colliders[i].enabled = push;

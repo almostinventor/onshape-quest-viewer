@@ -15,7 +15,7 @@ public class ModelServer : MonoBehaviour
     public const int Port = 8723;
     public ModelHost host;
 
-    /// Main-thread events for HUD animations.
+    /// Raised on the main thread when a download starts / something fails.
     public static event Action<string> DownloadStarted;
     public static event Action<string> Failed;
 
@@ -47,10 +47,8 @@ public class ModelServer : MonoBehaviour
 
     void Start()
     {
-        if (server == null) Hud.Error($"Port {Port} is in use. Is another viewer running?");
-        else Hud.Info(Application.platform == RuntimePlatform.Android
-            ? $"Ready. In the extension options, set the viewer to\n{address}"
-            : "Ready. Send a Part Studio from Onshape.", 8f);
+        if (server == null) Status.Error($"Port {Port} in use");
+        else Status.Info(Application.platform == RuntimePlatform.Android ? $"Viewer address\n{address}" : "Ready", 30f);
     }
 
     void OnDisable()
@@ -91,14 +89,14 @@ public class ModelServer : MonoBehaviour
                 switch (n.state)
                 {
                     case "downloading":
-                        Hud.Busy($"Downloading {n.message} from Onshape");
+                        Status.Busy($"Receiving\n{n.message}");
                         DownloadStarted?.Invoke(n.message);
                         break;
                     case "unchanged":
-                        Hud.Ok($"{n.message}: already up to date");
+                        Status.Ok($"Up to date\n{n.message}");
                         break;
                     case "error":
-                        Hud.Error(n.message);
+                        Status.Error(n.message);
                         Failed?.Invoke(n.message);
                         break;
                 }
@@ -115,14 +113,15 @@ public class ModelServer : MonoBehaviour
                 string name = Unescape(req.Header("X-Model-Name")) ?? "Onshape part";
                 string key = Unescape(req.Header("X-Model-Key"));
                 int.TryParse(req.Header("X-Hidden-Parts"), out int hidden);
+                string partInfo = DecodeBase64(req.Header("X-Part-Info"));
 
                 var summary = await OnMainThread(async () =>
                 {
-                    Hud.Busy($"Loading {name}");
-                    try { return await host.LoadGlbAsync(req.Body, name); }
+                    Status.Busy($"Loading\n{name}");
+                    try { return await host.LoadGlbAsync(req.Body, name, partInfo); }
                     catch (Exception e)
                     {
-                        Hud.Error("Could not load the model: " + e.Message);
+                        Status.Error("Load failed\n" + e.Message);
                         Failed?.Invoke(e.Message);
                         throw;
                     }
@@ -147,6 +146,13 @@ public class ModelServer : MonoBehaviour
     }
 
     static string Unescape(string s) => string.IsNullOrEmpty(s) ? null : Uri.UnescapeDataString(s);
+
+    static string DecodeBase64(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return null;
+        try { return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(s)); }
+        catch (FormatException) { return null; }
+    }
 
     static string Json(string s) =>
         s == null ? "null" : "\"" + s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "") + "\"";

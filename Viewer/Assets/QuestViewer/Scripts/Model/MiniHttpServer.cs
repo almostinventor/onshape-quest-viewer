@@ -128,7 +128,7 @@ public sealed class MiniHttpServer : IDisposable
         sb.Append("Content-Length: ").Append(r.Body.Length).Append("\r\n");
         sb.Append("Access-Control-Allow-Origin: *\r\n");
         sb.Append("Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n");
-        sb.Append("Access-Control-Allow-Headers: Content-Type, X-Model-Name, X-Model-Key, X-Hidden-Parts\r\n");
+        sb.Append("Access-Control-Allow-Headers: Content-Type, X-Model-Name, X-Model-Key, X-Hidden-Parts, X-Part-Info\r\n");
         sb.Append("Access-Control-Allow-Private-Network: true\r\n");
         sb.Append("Connection: close\r\n\r\n");
         var head = Encoding.ASCII.GetBytes(sb.ToString());

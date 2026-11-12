@@ -41,28 +41,35 @@ the last send, the model isn't downloaded again.
 | Pinch the model | Grab and move it precisely |
 | Close your hand around it | Whole-hand grab |
 | Grab with both hands | Scale and rotate it (locks to 100%) |
-| Push it with open fingers | It floats and drifts; let go mid-move to throw it |
+| Pinch in empty air with both hands, spread / close | Scale it in place (locks to 100%); tape measure in MEASURE mode |
+| Push it with open fingers | Nudge it; it floats and stops quickly |
+| Clap | Exploded view on/off |
 | Double-pinch the model | Reset to 100% |
 | Double-pinch in empty air | Bring the model in front of you |
-| Pinch in empty air with both hands | Tape measure (mm) |
+
+Let go of the model just above a real table and it settles onto it (standalone Quest with room setup done).
 
 ### Controllers
 | Button | Action |
 |---|---|
 | Grip | Grab (both grips: scale and rotate) |
 | A / X | Bring the model in front of you |
-| B / Y | Cycle HUD mode |
+| B / Y | Exploded view on/off |
 | Thumbstick click | Hologram mode on/off |
 
 The controller tip pushes things and presses buttons too.
 
 ### Keypad
-A small panel starts low on your left; pinch it to put it anywhere. Press its buttons with a fingertip or controller:
-- **HOLO**: hologram mode (translucent blue with scan lines). New models always materialise this way briefly.
-- **HUD**: Visor (helmet frame with animations), Minimal (just the model info) or Off.
-- **LIGHT**: Shaded or Flat (evenly lit, no shading).
+A panel with a small display starts low on your left; pinch it to put it anywhere. Press its buttons with a fingertip
+or controller. The display shows the scale (green at true size) and short status messages.
 
-The model's name, true size in mm and current scale are shown at the top of your view.
+| | | |
+|---|---|---|
+| **HOLO** hologram look | **STYLE** solid / clay / X-ray | **LIGHT** shaded / flat |
+| **EXPLODE** exploded view | **ROTATE** turntable | **CUT** section cut (pinch the frame to move it) |
+| **MEASURE** two-hand tape measure | **INSPECT** touch a part for its name, size and mass; touch twice to isolate it | **RESET** back in front of you at 100% |
+
+When a new version arrives it materialises as a hologram, and the previous version fades out as a ghost.
 Your real hands stay visible in front of the model, and on the standalone Quest real objects in front of the model
 hide it too (Meta Depth API; allow the spatial data permission when asked).
 

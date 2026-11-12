@@ -87,6 +87,7 @@ async function send(tab) {
         "X-Model-Name": encodeURIComponent(info.name),
         "X-Model-Key": encodeURIComponent(info.key),
         "X-Hidden-Parts": String(info.hidden),
+        "X-Part-Info": exp.parts || "",
       },
       body: base64ToBytes(exp.glb),
     });

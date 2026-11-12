@@ -47,18 +47,26 @@ Shader "QuestViewer/Hologram"
             #pragma fragment frag
             #pragma multi_compile_instancing
 
+            float4 _QV_CutPlane;
+            float _QV_CutOn;
+
             struct Attributes { float4 positionOS : POSITION; UNITY_VERTEX_INPUT_INSTANCE_ID };
-            struct Varyings { float4 positionCS : SV_POSITION; UNITY_VERTEX_OUTPUT_STEREO };
+            struct Varyings { float4 positionCS : SV_POSITION; float3 positionWS : TEXCOORD0; UNITY_VERTEX_OUTPUT_STEREO };
 
             Varyings vert(Attributes v)
             {
                 Varyings o;
                 UNITY_SETUP_INSTANCE_ID(v);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-                o.positionCS = TransformObjectToHClip(v.positionOS.xyz);
+                o.positionWS = TransformObjectToWorld(v.positionOS.xyz);
+                o.positionCS = TransformWorldToHClip(o.positionWS);
                 return o;
             }
-            half4 frag(Varyings i) : SV_Target { return 0; }
+            half4 frag(Varyings i) : SV_Target
+            {
+                if (_QV_CutOn > 0.5) clip(-(dot(_QV_CutPlane.xyz, i.positionWS) + _QV_CutPlane.w));
+                return 0;
+            }
             ENDHLSL
         }
 
@@ -104,8 +112,12 @@ Shader "QuestViewer/Hologram"
                 return o;
             }
 
+            float4 _QV_CutPlane;
+            float _QV_CutOn;
+
             half4 frag(Varyings i) : SV_Target
             {
+                if (_QV_CutOn > 0.5) clip(-(dot(_QV_CutPlane.xyz, i.positionWS) + _QV_CutPlane.w));
                 float3 n = normalize(i.normalWS);
                 float3 viewDir = normalize(GetWorldSpaceViewDir(i.positionWS));
                 half rim = pow(1.0h - saturate(abs(dot(n, viewDir))), _RimPower) * _RimStrength;

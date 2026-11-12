@@ -2,9 +2,9 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-/// Places this object in front of the head (default 40 cm ahead, 10 cm below the eyes), facing the user.
-/// Respawns when the headset is put back on (unless already handled) and, if recallable, on a double-pinch in
-/// empty air, the A/X controller button or R on the PC keyboard.
+/// Places this object in front of the head (default 40 cm ahead, 10 cm below the eyes), facing the user,
+/// once at start. After that it only moves back on request: if recallable, a double-pinch in empty air,
+/// the A/X controller button, R on the PC keyboard, or the keypad's RESET button.
 public class SpawnInFront : MonoBehaviour
 {
     public Transform head;
@@ -27,7 +27,6 @@ public class SpawnInFront : MonoBehaviour
 
     void OnEnable()
     {
-        OVRManager.HMDMounted += OnMounted;
         if (!recallable) return;
         PinchGrabber.AirDoublePinch += Respawn;
         ControllerGrabber.RecallPressed += Respawn;
@@ -35,7 +34,6 @@ public class SpawnInFront : MonoBehaviour
 
     void OnDisable()
     {
-        OVRManager.HMDMounted -= OnMounted;
         PinchGrabber.AirDoublePinch -= Respawn;
         ControllerGrabber.RecallPressed -= Respawn;
     }
@@ -47,11 +45,6 @@ public class SpawnInFront : MonoBehaviour
         while (head != null && head.localPosition.y < 0.3f && Time.realtimeSinceStartup < until) yield return null;
         yield return null;
         Respawn();
-    }
-
-    void OnMounted()
-    {
-        if (grabbable == null || !grabbable.HasBeenHeld) StartCoroutine(SpawnWhenTracked());
     }
 
     void Update()

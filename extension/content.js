@@ -83,11 +83,35 @@
     return dataUrl.slice(dataUrl.indexOf(",") + 1);
   }
 
+  // Mass (kg) and volume (m³) per part, base64 JSON {"partId": {"m": .., "v": ..}}. Empty if Onshape can't say.
+  async function massInfo(visible) {
+    try {
+      const u = parseLocation();
+      let url = `/partstudios/d/${u.did}/${u.wvm}/${u.wvmid}/e/${u.eid}/massproperties?massAsGroup=false`;
+      if (u.configuration) url += `&configuration=${encodeURIComponent(u.configuration)}`;
+      url += visible.map((id) => `&partId=${encodeURIComponent(id)}`).join("");
+      const json = await (await api(url)).json();
+      const out = {};
+      for (const [id, body] of Object.entries(json.bodies || {})) {
+        const entry = {};
+        if (body.hasMass && Array.isArray(body.mass)) entry.m = body.mass[0];
+        if (Array.isArray(body.volume)) entry.v = body.volume[0];
+        if (Object.keys(entry).length) out[id] = entry;
+      }
+      return btoa(unescape(encodeURIComponent(JSON.stringify(out))));
+    } catch {
+      return "";
+    }
+  }
+
   chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
     const run = async () => {
       if (msg.type === "ping") return { ok: true };
       if (msg.type === "prepare") return { ok: true, ...(await prepare()) };
-      if (msg.type === "export") return { ok: true, glb: await exportGlb(msg.visible, msg.hidden) };
+      if (msg.type === "export") {
+        const [glb, parts] = await Promise.all([exportGlb(msg.visible, msg.hidden), massInfo(msg.visible)]);
+        return { ok: true, glb, parts };
+      }
       return { ok: false, error: "unknown message" };
     };
     run().then(reply, (e) => reply({ ok: false, error: e.message || String(e) }));

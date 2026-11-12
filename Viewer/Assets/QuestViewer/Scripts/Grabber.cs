@@ -9,11 +9,15 @@ public abstract class Grabber : MonoBehaviour
     /// Pose the held object follows.
     public abstract Pose GrabPose { get; }
     public Grabbable Held { get; protected set; }
+    /// When this grabber last let go of something (finger pushing waits a moment after a release).
+    public float LastReleaseTime { get; private set; } = -10f;
 
     /// Called by Grabbable when it's taken away (respawned or replaced).
     internal virtual void Drop(Grabbable g)
     {
-        if (Held == g) Held = null;
+        if (Held != g) return;
+        Held = null;
+        LastReleaseTime = Time.time;
     }
 
     protected bool TryGrab(Vector3 at, float radius)
@@ -30,6 +34,7 @@ public abstract class Grabber : MonoBehaviour
         if (Held == null) return;
         Held.Release(this);
         Held = null;
+        LastReleaseTime = Time.time;
     }
 
     protected static Grabbable FindTarget(Vector3 p, float radius)

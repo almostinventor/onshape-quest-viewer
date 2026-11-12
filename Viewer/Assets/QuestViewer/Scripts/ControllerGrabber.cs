@@ -4,7 +4,7 @@ using UnityEngine;
 /// Touch controller interactions (on the controller anchor):
 ///   grip              grab (with the other controller or a hand: scale/rotate)
 ///   A / X             bring the model back in front of you
-///   B / Y             cycle the HUD mode
+///   B / Y             exploded view on/off
 ///   thumbstick click  toggle hologram mode
 /// The controller tip also pushes floating objects and presses keypad buttons.
 public class ControllerGrabber : Grabber
@@ -71,7 +71,7 @@ public class ControllerGrabber : Grabber
         }
 
         if (OVRInput.GetDown(OVRInput.Button.One, controller)) RecallPressed?.Invoke();
-        if (OVRInput.GetDown(OVRInput.Button.Two, controller)) ViewModes.CycleHud();
+        if (OVRInput.GetDown(OVRInput.Button.Two, controller)) ViewModes.ToggleExplode();
         if (OVRInput.GetDown(OVRInput.Button.PrimaryThumbstick, controller)) ViewModes.ToggleHologram();
     }
 

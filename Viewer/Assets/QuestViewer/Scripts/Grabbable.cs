@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 /// Grabbable object (needs a Collider on itself or a child).
 /// One holder: follows it. Two holders: scale with their distance (locks to 100%), rotate and move with both.
-/// With a Rigidbody it floats freely: fingers can push it, and it keeps your throw when let go.
+/// Remote scaling (two-hand air pinch) scales it in place without grabbing.
+/// With a Rigidbody it floats freely: fingers can push it, and it keeps a little of your throw when let go.
 public class Grabbable : MonoBehaviour
 {
     public bool allowScale = true;
@@ -14,14 +16,16 @@ public class Grabbable : MonoBehaviour
     [Tooltip("The lock releases only beyond this fraction, so it doesn't flicker.")]
     public float snapOut = 0.12f;
     [Tooltip("How much of your hand speed is kept when you let go.")]
-    public float throwScale = 1f;
+    public float throwScale = 0.5f;
 
-    /// Raised when two-handed scaling locks onto (true) or leaves (false) exactly 100%.
-    public static event System.Action<Grabbable, bool> SnapChanged;
+    /// Raised when scaling locks onto (true) or leaves (false) exactly 100%.
+    public static event Action<Grabbable, bool> SnapChanged;
+    /// Raised when the last holder lets go.
+    public static event Action<Grabbable> Released;
 
     public bool HasBeenHeld { get; private set; }
     public bool IsHeld => holders.Count > 0;
-    public bool IsScaling => holders.Count == 2;
+    public bool IsScaling => holders.Count == 2 || remoteScaling;
     public float Scale { get; private set; } = 1f;
     public bool IsTrueSize => Mathf.Approximately(Scale, 1f);
 
@@ -29,6 +33,9 @@ public class Grabbable : MonoBehaviour
     Vector3 baseScale;
     Rigidbody body;
     bool snapped = true;
+    bool frozen;
+    bool remoteScaling;
+    float remoteStartScale;
 
     // One holder: pose relative to its grab pose.
     Vector3 offPos;
@@ -54,24 +61,20 @@ public class Grabbable : MonoBehaviour
         if (holders.Contains(hand) || holders.Count >= 2) return;
         holders.Add(hand);
         HasBeenHeld = true;
-        if (body != null)
-        {
-            body.isKinematic = true;
-            velocity = angularVelocity = Vector3.zero;
-        }
+        velocity = angularVelocity = Vector3.zero;
         lastPos = transform.position;
         lastRot = transform.rotation;
+        UpdateKinematic(false);
         Rebase();
     }
 
     public void Release(Grabber hand)
     {
         if (!holders.Remove(hand)) return;
-        if (holders.Count == 0 && body != null)
+        if (holders.Count == 0)
         {
-            body.isKinematic = false;
-            body.linearVelocity = velocity * throwScale;
-            body.angularVelocity = angularVelocity * throwScale;
+            UpdateKinematic(true);
+            Released?.Invoke(this);
         }
         Rebase();
     }
@@ -80,6 +83,7 @@ public class Grabbable : MonoBehaviour
     {
         foreach (var h in holders.ToArray()) h.Drop(this);
         holders.Clear();
+        UpdateKinematic(false);
         Stop();
     }
 
@@ -95,15 +99,70 @@ public class Grabbable : MonoBehaviour
         Physics.SyncTransforms();
     }
 
+    /// Frozen objects ignore pushes (e.g. while inspecting or on the turntable).
+    public void SetFrozen(bool value)
+    {
+        if (frozen == value) return;
+        frozen = value;
+        UpdateKinematic(false);
+    }
+
+    void UpdateKinematic(bool throwOnRelease)
+    {
+        if (body == null) return;
+        bool kinematic = IsHeld || frozen || remoteScaling;
+        if (body.isKinematic == kinematic) return;
+        body.isKinematic = kinematic;
+        if (!kinematic)
+        {
+            body.linearVelocity = throwOnRelease ? velocity * throwScale : Vector3.zero;
+            body.angularVelocity = throwOnRelease ? angularVelocity * throwScale : Vector3.zero;
+        }
+    }
+
     public void ResetScale()
     {
         SetScale(1f);
-        if (!snapped)
-        {
-            snapped = true;
-            SnapChanged?.Invoke(this, true);
-        }
+        SetSnapped(true);
         Rebase();
+    }
+
+    // ---- Remote (two-hand air pinch) scaling, scales in place about the object's centre ----
+
+    public void BeginRemoteScale()
+    {
+        if (!allowScale || IsHeld) return;
+        remoteScaling = true;
+        remoteStartScale = Scale;
+        UpdateKinematic(false);
+    }
+
+    /// ratio = current hand distance / distance when the gesture started.
+    public void UpdateRemoteScale(float ratio)
+    {
+        if (!remoteScaling) return;
+        SetScale(Snap(Mathf.Clamp(remoteStartScale * ratio, minScale, maxScale)));
+    }
+
+    public void EndRemoteScale()
+    {
+        if (!remoteScaling) return;
+        remoteScaling = false;
+        UpdateKinematic(false);
+    }
+
+    float Snap(float s)
+    {
+        float off = Mathf.Abs(s - 1f);
+        SetSnapped(snapped ? off < snapOut : off < snapIn);
+        return snapped ? 1f : s;
+    }
+
+    void SetSnapped(bool value)
+    {
+        if (snapped == value) return;
+        snapped = value;
+        SnapChanged?.Invoke(this, value);
     }
 
     void SetScale(float s)
@@ -157,15 +216,7 @@ public class Grabbable : MonoBehaviour
             float s = startScale;
             if (allowScale)
             {
-                s = Mathf.Clamp(startScale * dist / startDist, minScale, maxScale);
-                float off = Mathf.Abs(s - 1f);
-                bool nowSnapped = snapped ? off < snapOut : off < snapIn;
-                if (nowSnapped != snapped)
-                {
-                    snapped = nowSnapped;
-                    SnapChanged?.Invoke(this, snapped);
-                }
-                if (snapped) s = 1f;
+                s = Snap(Mathf.Clamp(startScale * dist / startDist, minScale, maxScale));
                 SetScale(s);
             }
             transform.SetPositionAndRotation(pos + rot * (relPos * (s / startScale)), rot * relRot);
@@ -180,7 +231,7 @@ public class Grabbable : MonoBehaviour
         var v = (transform.position - lastPos) / dt;
         (transform.rotation * Quaternion.Inverse(lastRot)).ToAngleAxis(out float angle, out var axis);
         if (angle > 180f) angle -= 360f;
-        var w = float.IsNaN(axis.x) ? Vector3.zero : axis * (angle * Mathf.Deg2Rad / dt);
+        var w = float.IsNaN(axis.x) || float.IsInfinity(axis.x) ? Vector3.zero : axis * (angle * Mathf.Deg2Rad / dt);
         velocity = Vector3.Lerp(velocity, v, 0.5f);
         angularVelocity = Vector3.Lerp(angularVelocity, w, 0.5f);
         lastPos = transform.position;

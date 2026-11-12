@@ -30,7 +30,7 @@ public class HandMask : MonoBehaviour
             float step = kb.rightBracketKey.wasPressedThisFrame ? 0.001f : -0.001f;
             float v = Mathf.Clamp(holeMaterial.GetFloat(InflateId) + step, -0.008f, 0.012f);
             holeMaterial.SetFloat(InflateId, v);
-            Hud.Info($"Hand mask {v * 1000f:+0;-0;0} mm", 2f);
+            Status.Info($"Hand mask {v * 1000f:+0;-0;0} mm", 2f);
         }
     }
 }
