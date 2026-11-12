@@ -12,8 +12,11 @@ public class ModelPart : MonoBehaviour
     public float MassKg = float.NaN;
     /// Cubic metres, or NaN when unknown.
     public float VolumeM3 = float.NaN;
-    /// Local position in the model before exploding.
+    /// Local position and rotation in the model before exploding.
     public Vector3 Home;
+    public Quaternion HomeRotation = Quaternion.identity;
+    /// Who is pulling this part out (exploded view), or null.
+    public Grabber Dragger;
     /// Offset at full explosion (model-local).
     public Vector3 ExplodeOffset;
     public Renderer Renderer;

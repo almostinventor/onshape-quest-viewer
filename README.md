@@ -44,6 +44,8 @@ the last send, the model isn't downloaded again.
 | Pinch in empty air with both hands, spread / close | Scale it in place (locks to 100%); tape measure in MEASURE mode |
 | Push it with open fingers | Nudge it; it floats and stops quickly |
 | Clap | Exploded view on/off |
+| Pinch a part in exploded view | Pull it out; it glides back when you let go |
+| Point your index finger up and draw a circle | Rotate mode on (spins the way you swirled); again to stop |
 | Double-pinch the model | Reset to 100% |
 | Double-pinch in empty air | Bring the model in front of you |
 

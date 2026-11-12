@@ -13,6 +13,8 @@ public static class ViewModes
     public static LightingMode Lighting { get; private set; }
     public static bool Explode { get; private set; }
     public static bool Turntable { get; private set; }
+    /// Spin direction about the vertical axis: +1 or -1 (same sense as Unity's rotation about +Y).
+    public static float TurntableDirection { get; private set; } = 1f;
     public static bool Cut { get; private set; }
     public static bool Measure { get; private set; }
     public static bool Inspect { get; private set; }
@@ -33,6 +35,12 @@ public static class ViewModes
     public static void ToggleLighting() { Lighting = Lighting == LightingMode.Shaded ? LightingMode.Flat : LightingMode.Shaded; Save(); }
     public static void ToggleExplode() { Explode = !Explode; Save(); }
     public static void ToggleTurntable() { Turntable = !Turntable; Save(); }
+    public static void SetTurntable(bool on, float direction)
+    {
+        Turntable = on;
+        if (direction != 0f) TurntableDirection = Mathf.Sign(direction);
+        Save();
+    }
     public static void ToggleCut() { Cut = !Cut; Save(); }
     public static void ToggleMeasure() { Measure = !Measure; Save(); }
     public static void ToggleInspect() { Inspect = !Inspect; Save(); }

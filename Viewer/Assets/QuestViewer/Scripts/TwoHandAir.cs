@@ -48,7 +48,7 @@ public class TwoHandAir : MonoBehaviour
 
     void LateUpdate()
     {
-        bool both = left != null && right != null && left.IsPinching && right.IsPinching && left.Held == null && right.Held == null;
+        bool both = left != null && right != null && left.IsPinching && right.IsPinching && !left.IsHolding && !right.IsHolding;
         var a = both ? left.PinchPose.position : Vector3.zero;
         var b = both ? right.PinchPose.position : Vector3.zero;
         float dist = Vector3.Distance(a, b);

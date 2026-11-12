@@ -71,7 +71,7 @@ public class FingerColliders : MonoBehaviour
     {
         bool tracked = hand.IsTracked;
         // A pinch or grip always wins: no pushing while this hand holds something, or just after letting go.
-        bool holding = grabber != null && (grabber.Held != null || Time.time - grabber.LastReleaseTime < releaseGrace);
+        bool holding = grabber != null && (grabber.IsHolding || Time.time - grabber.LastReleaseTime < releaseGrace);
         bool push = tracked && !hand.IsClosing && !holding;
         for (int i = 0; i < Joints.Length; i++)
         {

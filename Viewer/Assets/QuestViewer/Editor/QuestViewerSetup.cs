@@ -253,6 +253,7 @@ public static class QuestViewerSetup
         cube.AddComponent<SpawnInFront>().head = centerEye;
         SetLook(cube.AddComponent<ModelLook>(), partMat, xrayMat, hologramMat);
         cube.AddComponent<TableSnap>();
+        cube.AddComponent<Turntable>();
 
         // The Onshape model and the server the extension sends it to.
         var model = new GameObject("Model");
@@ -265,6 +266,7 @@ public static class QuestViewerSetup
         var host = model.AddComponent<ModelHost>();
         host.placeholder = cube;
         model.AddComponent<ModelMotion>();
+        model.AddComponent<Turntable>();
         model.AddComponent<TableSnap>();
         new GameObject("ModelServer").AddComponent<ModelServer>().host = host;
 
@@ -277,6 +279,10 @@ public static class QuestViewerSetup
         air.model = modelGrab;
         air.modelHost = host;
         air.placeholder = cubeGrab;
+
+        var swirl = rig.AddComponent<SwirlDetector>();
+        swirl.left = left.GetComponent<TrackedHand>();
+        swirl.right = right.GetComponent<TrackedHand>();
 
         var clap = rig.AddComponent<ClapDetector>();
         clap.left = left.GetComponent<TrackedHand>();

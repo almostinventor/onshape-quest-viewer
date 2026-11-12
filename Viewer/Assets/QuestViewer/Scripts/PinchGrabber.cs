@@ -3,6 +3,7 @@ using UnityEngine;
 
 /// Hand interactions:
 ///   pinch an object            grab it precisely (with the other hand too: scale/rotate)
+///   pinch a part (exploded)    pull that part out; it glides back when released
 ///   close your hand around it  grab it with a whole-hand grip
 ///   double-pinch an object     reset it to 100% scale
 ///   double-pinch in empty air  bring the model back in front of you
@@ -54,6 +55,7 @@ public class PinchGrabber : Grabber
         else if ((mode == Mode.Pinch && !pinch) || (mode == Mode.Grip && !grip))
         {
             ReleaseHeld();
+            ReleasePart();
             mode = Mode.None;
         }
     }
@@ -61,6 +63,15 @@ public class PinchGrabber : Grabber
     void OnPinchStart()
     {
         var p = Hand.PinchPose.position;
+        // Exploded view: pinching a part pulls just that part out.
+        if (TryDragPart(p, grabRadius))
+        {
+            mode = Mode.Pinch;
+            lastTarget = null;
+            lastPinchTime = -10f;
+            return;
+        }
+
         var target = FindTarget(p, grabRadius);
         bool isDouble = Time.time - lastPinchTime < doublePinchTime && target == lastTarget;
         lastPinchTime = Time.time;

@@ -36,7 +36,7 @@ public class TableSnap : MonoBehaviour
         }
         if (grabbable.IsHeld) yield break;
         transform.position = end;
-        grabbable.SetFrozen(ViewModes.Turntable || ViewModes.Inspect);
+        grabbable.SetFrozen(ViewModes.Inspect);
         grabbable.Stop();
         Status.Info("On the table", 1.5f);
     }

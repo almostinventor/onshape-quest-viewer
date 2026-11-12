@@ -155,6 +155,7 @@ public class ModelHost : MonoBehaviour
             var b = RendererBoundsIn(r, transform);
             part.SizeMm = new Vector3(b.size.x, b.size.z, b.size.y) * 1000f;
             part.Home = r.transform.localPosition;
+            part.HomeRotation = r.transform.localRotation;
             // Push outwards from the model centre (in the part's parent space).
             var dirModel = (b.center - centre) * explodeAmount;
             var parent = r.transform.parent;

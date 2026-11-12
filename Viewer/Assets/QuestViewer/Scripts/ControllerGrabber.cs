@@ -54,7 +54,7 @@ public class ControllerGrabber : Grabber
         tipPoker.SetActive(connected);
         if (!connected)
         {
-            if (gripping) { gripping = false; ReleaseHeld(); }
+            if (gripping) { gripping = false; ReleaseHeld(); ReleasePart(); }
             return;
         }
 
@@ -62,12 +62,14 @@ public class ControllerGrabber : Grabber
         if (!gripping && g > 0.55f)
         {
             gripping = true;
-            TryGrab(GrabPose.position, grabRadius);
+            // Exploded view: grip a part to pull it out; otherwise grab the whole object.
+            if (!TryDragPart(GrabPose.position, grabRadius)) TryGrab(GrabPose.position, grabRadius);
         }
         else if (gripping && g < 0.35f)
         {
             gripping = false;
             ReleaseHeld();
+            ReleasePart();
         }
 
         if (OVRInput.GetDown(OVRInput.Button.One, controller)) RecallPressed?.Invoke();
