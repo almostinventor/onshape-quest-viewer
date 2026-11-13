@@ -6,7 +6,7 @@ Shader "QuestViewer/Hologram"
     Properties
     {
         _Color ("Color", Color) = (0.3, 0.85, 1, 1)
-        _Alpha ("Body alpha", Range(0, 1)) = 0.16
+        _Alpha ("Body alpha", Range(0, 1)) = 0.21
         _RimPower ("Rim power", Float) = 2.5
         _RimStrength ("Rim strength", Float) = 1.3
         _LineDensity ("Scan lines per metre", Float) = 320

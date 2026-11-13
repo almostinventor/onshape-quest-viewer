@@ -21,6 +21,11 @@ crashlytics-build.properties
 # Meta SDK local settings (contains a locally generated token)
 Viewer/Assets/Resources/DevAgentSettings.asset*
 
+# Voice model (QuestViewer > Download Voice Model)
+Viewer/Assets/StreamingAssets/vosk-model/
+Viewer/Assets/StreamingAssets/vosk-model.meta
+Viewer/Assets/StreamingAssets.meta
+
 # Local files
 config.json
 *.log

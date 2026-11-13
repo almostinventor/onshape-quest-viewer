@@ -5,8 +5,8 @@ using UnityEngine;
 /// controller tip:
 ///   HOLO     hologram look           STYLE    solid / clay / X-ray     LIGHT   shaded / flat
 ///   EXPLODE  exploded view           ROTATE   turntable                CUT     section cut
-///   MEASURE  two-hand tape measure   INSPECT  touch parts for info     RESET   back in front of you at 100%
-/// The display shows the scale and short status messages.
+///   FIXED    fixed scale (100%)      INSPECT  touch parts for info     RESET   back in front of you at 100%
+/// The display shows the scale and short status messages. Voice commands press the same buttons (Press).
 [RequireComponent(typeof(Grabbable))]
 public class Keypad : MonoBehaviour
 {
@@ -21,7 +21,9 @@ public class Keypad : MonoBehaviour
     const float Pitch = 0.043f;
     const float DisplayY = 0.05f;
 
-    KeypadButton holo, style, lighting, explode, turntable, cut, measure, inspect, reset;
+    KeypadButton holo, style, lighting, explode, turntable, cut, fixedScale, inspect, reset;
+    readonly System.Collections.Generic.Dictionary<string, KeypadButton> byLabel =
+        new System.Collections.Generic.Dictionary<string, KeypadButton>();
     TextMesh scaleText, infoText;
     ModelServer server;
     AudioSource audioSource;
@@ -66,7 +68,7 @@ public class Keypad : MonoBehaviour
         explode = Button(0, 1, "EXPLODE", ViewModes.ToggleExplode, capMat);
         turntable = Button(1, 1, "ROTATE", ViewModes.ToggleTurntable, capMat);
         cut = Button(2, 1, "CUT", ViewModes.ToggleCut, capMat);
-        measure = Button(0, 2, "MEASURE", ViewModes.ToggleMeasure, capMat);
+        fixedScale = Button(0, 2, "FIXED", ToggleFixedScale, capMat);
         inspect = Button(1, 2, "INSPECT", ViewModes.ToggleInspect, capMat);
         reset = Button(2, 2, "RESET", ResetObject, capMat);
 
@@ -77,8 +79,44 @@ public class Keypad : MonoBehaviour
         click = MakeClick();
     }
 
-    KeypadButton Button(int col, int row, string label, Action action, Material capMat) =>
-        KeypadButton.Create(transform, new Vector3((col - 1) * Pitch, -row * Pitch, 0f), label, capMat, action, this);
+    KeypadButton Button(int col, int row, string label, Action action, Material capMat)
+    {
+        var b = KeypadButton.Create(transform, new Vector3((col - 1) * Pitch, -row * Pitch, 0f), label, capMat, action, this);
+        byLabel[label] = b;
+        return b;
+    }
+
+    /// Presses a button by its label (HOLO, STYLE, …, RESET), with the same click and animation as a touch.
+    public bool Press(string label)
+    {
+        if (!byLabel.TryGetValue(label, out var b)) return false;
+        b.Press();
+        return true;
+    }
+
+    /// Whether a button's LED is lit (its mode is on). False for unknown labels.
+    public bool IsOn(string label) => byLabel.TryGetValue(label, out var b) && b.IsOn;
+
+    /// Back in front of you at 100%, with the hologram scan-in.
+    public void Recenter() => ResetObject();
+
+    /// Plays a sound from the keypad (Marvin's voice).
+    public void Say(AudioClip clip, float volume = 0.7f)
+    {
+        if (clip == null) return;
+        audioSource.pitch = 1f;
+        audioSource.PlayOneShot(clip, volume);
+    }
+
+    /// FIXED scale on: back to exactly 100%, and nothing can scale it until it's turned off.
+    void ToggleFixedScale()
+    {
+        ViewModes.ToggleFixedScale();
+        if (!ViewModes.FixedScale) return;
+        foreach (var g in new[] { model, placeholder })
+            if (g != null && g.allowScale && !g.IsTrueSize) g.ResetScale();
+        Status.Info("Fixed scale\n100%, scaling is off", 2f);
+    }
 
     void OnEnable() { ViewModes.Changed += Refresh; Refresh(); }
     void OnDisable() => ViewModes.Changed -= Refresh;
@@ -92,7 +130,7 @@ public class Keypad : MonoBehaviour
         explode.SetState(ViewModes.Explode ? "ON" : "OFF", ViewModes.Explode);
         turntable.SetState(ViewModes.Turntable ? "ON" : "OFF", ViewModes.Turntable);
         cut.SetState(ViewModes.Cut ? "ON" : "OFF", ViewModes.Cut);
-        measure.SetState(ViewModes.Measure ? "ON" : "OFF", ViewModes.Measure);
+        fixedScale.SetState(ViewModes.FixedScale ? "ON" : "OFF", ViewModes.FixedScale);
         inspect.SetState(ViewModes.Inspect ? "ON" : "OFF", ViewModes.Inspect);
         reset.SetState("", false);
     }
@@ -103,10 +141,13 @@ public class Keypad : MonoBehaviour
     {
         var t = Target;
         if (t == null) return;
-        t.ReleaseAll();
-        t.ResetScale();
         var spawn = t.GetComponent<SpawnInFront>();
-        if (spawn != null) spawn.Respawn();
+        if (spawn != null) spawn.Respawn(); // also releases it and resets the scale to 100%
+        else
+        {
+            t.ReleaseAll();
+            t.ResetScale();
+        }
     }
 
     void LateUpdate()
@@ -127,7 +168,6 @@ public class Keypad : MonoBehaviour
             if (Status.Type == Status.Kind.Busy) info += new string('.', 1 + (int)(Time.unscaledTime * 3f) % 3);
         }
         else if (ViewModes.Inspect) info = "INSPECT\ntouch a part";
-        else if (ViewModes.Measure) info = "MEASURE\npinch with both hands";
         else if (ViewModes.Cut) info = "CUT\npinch the frame to move it";
         else
         {
@@ -262,6 +302,8 @@ public class KeypadButton : MonoBehaviour
         return t;
     }
 
+    public bool IsOn => on;
+
     public void SetState(string text, bool active)
     {
         stateText.text = text;
@@ -270,7 +312,13 @@ public class KeypadButton : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
-        if (other.GetComponent<Poker>() == null || Time.time - pressedAt < Cooldown) return;
+        if (other.GetComponent<Poker>() != null) Press();
+    }
+
+    /// Touch or voice: click, animate, run the action.
+    public void Press()
+    {
+        if (Time.time - pressedAt < Cooldown) return;
         pressedAt = Time.time;
         pad.PlayClick(on ? 0.9f : 1.1f);
         action?.Invoke();

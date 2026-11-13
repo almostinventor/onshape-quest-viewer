@@ -25,7 +25,7 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _Alpha: 0.16
+    - _Alpha: 0.21
     - _BandStrength: 1.6
     - _BandWidth: 0.025
     - _BandY: -1000

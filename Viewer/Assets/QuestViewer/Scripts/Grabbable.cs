@@ -5,6 +5,7 @@ using UnityEngine;
 /// Grabbable object (needs a Collider on itself or a child).
 /// One holder: follows it. Two holders: scale with their distance (locks to 100%), rotate and move with both.
 /// Remote scaling (two-hand air pinch) scales it in place without grabbing.
+/// In FIXED scale mode (ViewModes.FixedScale) nothing scales it; two hands only move and rotate it.
 /// With a Rigidbody it floats freely: fingers can push it, and it keeps a little of your throw when let go.
 public class Grabbable : MonoBehaviour
 {
@@ -22,6 +23,8 @@ public class Grabbable : MonoBehaviour
     public static event Action<Grabbable, bool> SnapChanged;
     /// Raised when the last holder lets go.
     public static event Action<Grabbable> Released;
+
+    bool CanScale => allowScale && !ViewModes.FixedScale;
 
     public bool HasBeenHeld { get; private set; }
     public bool IsHeld => holders.Count > 0;
@@ -59,6 +62,7 @@ public class Grabbable : MonoBehaviour
     public void Grab(Grabber hand)
     {
         if (holders.Contains(hand) || holders.Count >= 2) return;
+        StopGrowIn();
         holders.Add(hand);
         HasBeenHeld = true;
         velocity = angularVelocity = Vector3.zero;
@@ -110,7 +114,7 @@ public class Grabbable : MonoBehaviour
     void UpdateKinematic(bool throwOnRelease)
     {
         if (body == null) return;
-        bool kinematic = IsHeld || frozen || remoteScaling;
+        bool kinematic = IsHeld || frozen || remoteScaling || growing != null;
         if (body.isKinematic == kinematic) return;
         body.isKinematic = kinematic;
         if (!kinematic)
@@ -122,16 +126,59 @@ public class Grabbable : MonoBehaviour
 
     public void ResetScale()
     {
+        StopGrowIn();
         SetScale(1f);
         SetSnapped(true);
         Rebase();
+    }
+
+    // ---- Grow-in animation (recentring): grows from almost nothing to exactly 100% ----
+
+    Coroutine growing;
+
+    public void GrowIn(float seconds)
+    {
+        if (!allowScale) return;
+        ResetScale();
+        growing = StartCoroutine(Grow(seconds));
+        UpdateKinematic(false); // fingers don't push it around while it grows
+    }
+
+    System.Collections.IEnumerator Grow(float seconds)
+    {
+        const float from = 0.03f;
+        float t0 = Time.time;
+        while (Time.time - t0 < seconds)
+        {
+            float u = (Time.time - t0) / seconds;
+            float eased = 1f - Mathf.Pow(1f - u, 3f); // fast at first, settling gently into 100%
+            Scale = Mathf.Lerp(from, 1f, eased);
+            transform.localScale = baseScale * Scale;
+            yield return null;
+        }
+        growing = null;
+        SetScale(1f);
+        UpdateKinematic(false);
+    }
+
+    void OnDisable() => StopGrowIn();
+
+    /// Ends the animation at 100% (e.g. when grabbed mid-way).
+    void StopGrowIn()
+    {
+        if (growing == null) return;
+        StopCoroutine(growing);
+        growing = null;
+        SetScale(1f);
+        UpdateKinematic(false);
     }
 
     // ---- Remote (two-hand air pinch) scaling, scales in place about the object's centre ----
 
     public void BeginRemoteScale()
     {
-        if (!allowScale || IsHeld) return;
+        if (!CanScale || IsHeld) return;
+        StopGrowIn();
         remoteScaling = true;
         remoteStartScale = Scale;
         UpdateKinematic(false);
@@ -214,7 +261,7 @@ public class Grabbable : MonoBehaviour
         {
             Frame(out var pos, out var rot, out var dist);
             float s = startScale;
-            if (allowScale)
+            if (CanScale)
             {
                 s = Snap(Mathf.Clamp(startScale * dist / startDist, minScale, maxScale));
                 SetScale(s);

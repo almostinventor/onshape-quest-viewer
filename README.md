@@ -18,7 +18,9 @@ Windows. Nothing has been tried on other headsets, browsers or operating systems
 - Passthrough, with your real hands visible in front of the model
 - Pinch to grab, two-hand scaling with the lock at 100%
 - Pushing the model with your fingers
-- The keypad, exploded view and rotate mode (earlier versions of these)
+- The keypad and all its modes
+- Voice commands, including sending from Chrome by voice and Marvin's replies
+- Recentring with the grow-in animation
 
 ## What you need
 - Meta Quest 3 with hand tracking turned on, and [developer mode](https://developers.meta.com/horizon/documentation/native/android/mobile-device-setup/)
@@ -57,14 +59,14 @@ in the last send. Any edit in the document changes its microversion, so it then 
 |---|---|
 | Pinch the model | Grab and move it |
 | Close your hand around it | Whole-hand grab |
-| Grab with both hands | Scale and rotate it; the scale locks to 100% within ±5% |
-| Pinch in empty air with both hands, spread / close | Scale it in place; in MEASURE mode a tape measure instead |
+| Grab with both hands | Scale and rotate it; the scale locks to 100% within ±5% (in FIXED mode: rotate only) |
+| Pinch in empty air with both hands, spread / close | Scale it in place (not in FIXED mode) |
 | Push it with open fingers | Nudge it; it floats without gravity and slows down quickly |
 | Clap | Exploded view on/off |
 | Pinch a part in exploded view | Pull that part out; it moves back when you let go |
 | Point your index finger up and draw a circle | Rotate mode on, in the direction you circled; again to turn it off |
 | Double-pinch the model | Reset to 100% |
-| Double-pinch in empty air | Bring the model in front of you |
+| Double-pinch in empty air | Bring the model in front of you at 100% |
 
 Letting go of the model up to 12 cm above a horizontal surface known to the Quest (from its room setup) lowers it
 onto that surface.
@@ -73,7 +75,7 @@ onto that surface.
 | Button | Action |
 |---|---|
 | Grip | Grab (both grips: scale and rotate) |
-| A / X | Bring the model in front of you |
+| A / X | Bring the model in front of you at 100% |
 | B / Y | Exploded view on/off |
 | Thumbstick click | Hologram mode on/off |
 
@@ -88,16 +90,32 @@ pairing code.
 |---|---|---|
 | **HOLO** hologram look | **STYLE** solid / clay / X-ray | **LIGHT** shaded / flat |
 | **EXPLODE** exploded view | **ROTATE** turntable | **CUT** section cut (pinch the frame to move it) |
-| **MEASURE** two-hand tape measure | **INSPECT** touch a part to see its name and size, plus mass if a material is assigned in Onshape (otherwise volume); touch it twice to isolate it | **RESET** back in front of you at 100% |
+| **FIXED** fixed scale: back to 100%, and nothing can scale it until you turn it off | **INSPECT** touch a part to see its name and size, plus mass if a material is assigned in Onshape (otherwise volume); touch it twice to isolate it | **RESET** back in front of you at 100% |
 
 The exploded view is calculated by the viewer (each part moves outward from the model's centre); Onshape's own
 exploded views exist only for Assemblies, which this project doesn't support.
 
-When a new version arrives it first appears as a hologram, and the previous version fades out over a few seconds.
+The hologram look (HOLO) is on by default. Bringing the model in front of you always sets it back to 100%: it
+grows in from almost nothing over two seconds while a hologram scan sweeps over it. When a new version arrives it first appears as a hologram, and the previous version
+fades out over a few seconds.
 On the standalone Quest, real objects in front of the model are meant to hide it (Meta Depth API); the app asks for
 the spatial data permission for this and for finding surfaces.
 
-PC keyboard: **R** brings the model in front of you, **[** / **]** make the hand mask 1 mm thinner or wider.
+### Voice
+The viewer listens for a few fixed phrases, offline: on the Quest with [Vosk](https://alphacephei.com/vosk/) and a
+small English model, on PC with Windows speech recognition. Audio never leaves the device. The Quest app asks for
+microphone permission on first start.
+
+| Say | Action |
+|---|---|
+| "Marvin, send this to the Quest" or "Marvin, could you send the model" | Chrome sends the Onshape tab you used last; a model already in view comes back in front of you at 100% after 2 seconds |
+| "Marvin, hologram / style / light / explode / rotate / cut / fixed / inspect / reset" | Presses that keypad button |
+| "Thanks Marvin" | Marvin answers |
+
+Marvin answers every command with droid beeps (generated in code). Sending by voice needs an Onshape tab open in
+Chrome with the extension paired.
+
+PC keyboard: **R** brings the model in front of you at 100%, **[** / **]** make the hand mask 1 mm thinner or wider.
 
 ## Known limitations
 - Only Part Studios; Assemblies are not supported.
@@ -118,4 +136,6 @@ PC keyboard: **R** brings the model in front of you, **[** / **]** make the hand
 
 ## License
 [MIT](LICENSE). The Meta XR Core SDK, glTFast and other Unity packages are downloaded by Unity's package manager and
-come with their own licenses.
+come with their own licenses. Vosk (Apache 2.0) is downloaded by Gradle when building for the Quest, and its English
+model (Apache 2.0) by **QuestViewer → Download Voice Model** (also run by Setup); neither is stored in this
+repository.

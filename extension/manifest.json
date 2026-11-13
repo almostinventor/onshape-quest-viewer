@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Send to Quest",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Send the open Onshape Part Studio to the Quest viewer.",
   "icons": {
     "16": "icons/icon16.png",

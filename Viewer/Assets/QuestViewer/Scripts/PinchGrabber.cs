@@ -21,7 +21,7 @@ public class PinchGrabber : Grabber
     public static event Action AirDoublePinch;
 
     public TrackedHand Hand { get; private set; }
-    /// Pinching (whether or not anything is held). Used by the tape measure.
+    /// Pinching (whether or not anything is held). Used by the two-hand air scaling.
     public bool IsPinching { get; private set; }
     public bool IsGripping { get; private set; }
 

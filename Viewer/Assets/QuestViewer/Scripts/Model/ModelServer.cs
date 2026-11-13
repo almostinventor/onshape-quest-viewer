@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -11,6 +12,8 @@ using UnityEngine;
 ///   POST /notify  {"state":"downloading|error|unchanged","message":"…"}  -> shows it in the headset
 ///   POST /model   binary glTF body, headers X-Model-Name / X-Model-Key / X-Hidden-Parts / X-Part-Info
 ///                 -> loads it, replies when shown
+///   GET  /commands  long poll (up to 20 s) -> {"commands":["send"]}; how the viewer asks the extension to send
+///                   (voice command). The extension keeps one open while an Onshape tab is open in Chrome.
 /// On PC it listens on localhost only; on Quest on the local network, so Chrome on the PC can reach it.
 public class ModelServer : MonoBehaviour
 {
@@ -27,6 +30,35 @@ public class ModelServer : MonoBehaviour
     volatile string modelKey;
     volatile bool loading;
     string address;
+
+    // Commands for the extension, picked up by GET /commands.
+    const double PollSeconds = 20, CommandMaxAgeSeconds = 10;
+    readonly object commandLock = new object();
+    readonly System.Collections.Generic.List<(string name, DateTime at)> commands = new System.Collections.Generic.List<(string, DateTime)>();
+    TaskCompletionSource<bool> commandSignal = NewSignal();
+    int openPolls;
+    long lastPollTicks;
+
+    static TaskCompletionSource<bool> NewSignal() => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// True while the extension is waiting for commands (an Onshape tab is open in Chrome).
+    public bool ExtensionListening =>
+        Volatile.Read(ref openPolls) > 0
+        || (DateTime.UtcNow - new DateTime(Interlocked.Read(ref lastPollTicks), DateTimeKind.Utc)).TotalSeconds < 5;
+
+    /// Asks the extension to send the Onshape tab you used last. False if no extension is listening.
+    public bool RequestSend()
+    {
+        if (!ExtensionListening) return false;
+        lock (commandLock)
+        {
+            commands.Add(("send", DateTime.UtcNow));
+            var s = commandSignal;
+            commandSignal = NewSignal();
+            s.TrySetResult(true);
+        }
+        return true;
+    }
 
     [Serializable] class Notice { public string state; public string message; }
 
@@ -90,6 +122,9 @@ public class ModelServer : MonoBehaviour
                 $"{{\"ok\":true,\"model\":{Json(modelName)},\"key\":{Json(modelKey)},\"loading\":{(loading ? "true" : "false")}}}");
         }
 
+        if (req.Method == "GET" && req.Path == "/commands")
+            return MiniHttpServer.Response.Json(200, "{\"commands\":[" + string.Join(",", await WaitForCommands()) + "]}");
+
         if (req.Method == "POST" && req.Path == "/notify")
         {
             var n = JsonUtility.FromJson<Notice>(req.BodyText) ?? new Notice();
@@ -151,7 +186,40 @@ public class ModelServer : MonoBehaviour
             }
         }
 
-        return MiniHttpServer.Response.Json(404, "{\"ok\":false,\"message\":\"Use GET /status, POST /notify or POST /model.\"}");
+        return MiniHttpServer.Response.Json(404, "{\"ok\":false,\"message\":\"Use GET /status, GET /commands, POST /notify or POST /model.\"}");
+    }
+
+    /// Waits until there are commands or the poll time is up; returns them as JSON strings.
+    async Task<string[]> WaitForCommands()
+    {
+        Interlocked.Increment(ref openPolls);
+        try
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(PollSeconds);
+            while (true)
+            {
+                Task signal;
+                lock (commandLock)
+                {
+                    commands.RemoveAll(c => (DateTime.UtcNow - c.at).TotalSeconds > CommandMaxAgeSeconds);
+                    if (commands.Count > 0)
+                    {
+                        var names = commands.ConvertAll(c => Json(c.name)).ToArray();
+                        commands.Clear();
+                        return names;
+                    }
+                    signal = commandSignal.Task;
+                }
+                var left = deadline - DateTime.UtcNow;
+                if (left <= TimeSpan.Zero) return Array.Empty<string>();
+                await Task.WhenAny(signal, Task.Delay(left));
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref lastPollTicks, DateTime.UtcNow.Ticks);
+            Interlocked.Decrement(ref openPolls);
+        }
     }
 
     static string Unescape(string s) => string.IsNullOrEmpty(s) ? null : Uri.UnescapeDataString(s);

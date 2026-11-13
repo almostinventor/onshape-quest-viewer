@@ -4,9 +4,13 @@ using UnityEngine.InputSystem;
 
 /// Places this object in front of the head (default 40 cm ahead, 10 cm below the eyes), facing the user,
 /// once at start. After that it only moves back on request: if recallable, a double-pinch in empty air,
-/// the A/X controller button, R on the PC keyboard, or the keypad's RESET button.
+/// the A/X controller button, R on the PC keyboard, the keypad's RESET button, or a voice command.
+/// Recentring always ends at exactly 100%: the object grows in from almost nothing while the hologram scan
+/// sweeps over it (scalable objects with a ModelLook, i.e. the model and the test cube).
 public class SpawnInFront : MonoBehaviour
 {
+    [Tooltip("Length of the grow-in and hologram scan when recentred.")]
+    public float recenterSeconds = 2f;
     public Transform head;
     public float distance = 0.40f;
     public float belowEyes = 0.10f;
@@ -55,7 +59,16 @@ public class SpawnInFront : MonoBehaviour
     public void Respawn()
     {
         if (head == null || !isActiveAndEnabled) return;
-        if (grabbable != null) grabbable.ReleaseAll();
+        var look = GetComponent<ModelLook>();
+        if (grabbable != null)
+        {
+            grabbable.ReleaseAll();
+            if (grabbable.allowScale)
+            {
+                if (look != null) grabbable.GrowIn(recenterSeconds);
+                else grabbable.ResetScale();
+            }
+        }
 
         var forward = Vector3.ProjectOnPlane(head.forward, Vector3.up);
         if (forward.sqrMagnitude < 1e-4f) forward = Vector3.forward;
@@ -65,5 +78,6 @@ public class SpawnInFront : MonoBehaviour
         transform.position = head.position + forward * distance + right * sideways + Vector3.down * belowEyes;
         transform.rotation = Quaternion.LookRotation(-forward, Vector3.up) * Quaternion.Euler(-tiltDegrees, 0f, 0f);
         if (grabbable != null) grabbable.Stop();
+        if (look != null) look.ScanIn(recenterSeconds);
     }
 }

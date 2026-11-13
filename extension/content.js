@@ -117,4 +117,16 @@
     run().then(reply, (e) => reply({ ok: false, error: e.message || String(e) }));
     return true; // async reply
   });
+
+  // Voice commands from the viewer: keep the extension listening while this tab is open, and tell it which
+  // Onshape tab was used last ("send this to the quest" sends that one).
+  const ping = (type) => {
+    try { chrome.runtime.sendMessage({ type }).catch(() => {}); } catch { /* extension reloaded */ }
+  };
+  const focused = () => { if (document.visibilityState === "visible" && document.hasFocus()) ping("focused"); };
+  window.addEventListener("focus", focused);
+  document.addEventListener("visibilitychange", focused);
+  focused();
+  ping("alive");
+  setInterval(() => ping("alive"), 20000);
 })();

@@ -88,21 +88,25 @@ public class ModelLook : MonoBehaviour
         return m;
     }
 
-    public void ScanIn()
+    /// Hologram scan-in (materialising sweep). seconds &lt;= 0 uses scanSeconds.
+    public void ScanIn(float seconds = 0f)
     {
         scanStart = Time.time;
+        scanDuration = seconds > 0f ? seconds : scanSeconds;
         StopCoroutine(nameof(EndScan));
         StartCoroutine(nameof(EndScan));
         Refresh();
     }
 
+    float scanDuration = 1f;
+
     IEnumerator EndScan()
     {
-        yield return new WaitForSeconds(scanSeconds);
+        yield return new WaitForSeconds(scanDuration);
         Refresh();
     }
 
-    bool Scanning => Time.time - scanStart < scanSeconds;
+    bool Scanning => Time.time - scanStart < scanDuration;
 
     /// Keep one part solid and show the rest as X-ray (null = show all normally).
     public void Isolate(Renderer r)
@@ -154,7 +158,7 @@ public class ModelLook : MonoBehaviour
         if (!TryWorldBounds(out var b)) return;
         float t = Time.time - scanStart;
         bool scanning = Scanning;
-        float phase = scanning ? t / scanSeconds : Mathf.Repeat(Time.time / sweepPeriod, 1f);
+        float phase = scanning ? t / scanDuration : Mathf.Repeat(Time.time / sweepPeriod, 1f);
         float pad = b.extents.y * 0.15f + 0.01f;
         hologram.SetFloat(BandY, Mathf.Lerp(b.min.y - pad, b.max.y + pad, phase));
         hologram.SetFloat(BandStrength, scanning ? 2.4f : 1.4f);

@@ -117,3 +117,51 @@ async function send(tab) {
 }
 
 chrome.action.onClicked.addListener((tab) => send(tab));
+
+// Voice commands: while an Onshape tab is open, it pings this worker (keeping it alive) and the worker waits
+// on the viewer's GET /commands. "send" sends the Onshape document tab you used last.
+const isDocument = (url) => /^https:\/\/[^/]*onshape\.com\/documents\//.test(url || "");
+let polling = false;
+
+async function voiceTarget() {
+  const { lastTab } = await chrome.storage.session.get("lastTab");
+  if (lastTab != null) {
+    try {
+      const t = await chrome.tabs.get(lastTab);
+      if (isDocument(t.url)) return t;
+    } catch { /* closed */ }
+  }
+  const tabs = await chrome.tabs.query({ url: "https://*.onshape.com/documents/*" });
+  return tabs.find((t) => t.active) || tabs[0];
+}
+
+async function pollCommands() {
+  if (polling) return;
+  polling = true;
+  try {
+    while (true) {
+      const { base, pairCode } = await viewerSettings();
+      if (!pairCode) return;
+      let r;
+      try {
+        r = await fetch(base + "/commands", { headers: { "X-Pair-Code": pairCode }, signal: AbortSignal.timeout(30000) });
+      } catch {
+        return; // viewer not running; the next ping from an Onshape tab tries again
+      }
+      if (!r.ok) return;
+      const { commands = [] } = await r.json().catch(() => ({}));
+      if (commands.includes("send")) {
+        const tab = await voiceTarget();
+        if (tab) await send(tab);
+      }
+    }
+  } finally {
+    polling = false;
+  }
+}
+
+chrome.runtime.onMessage.addListener((msg, sender) => {
+  if (!sender.tab || !msg || (msg.type !== "alive" && msg.type !== "focused")) return;
+  if (msg.type === "focused") chrome.storage.session.set({ lastTab: sender.tab.id });
+  pollCommands();
+});

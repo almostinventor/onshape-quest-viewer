@@ -22,8 +22,8 @@ public static class QuestViewerSetup
     const string ProductName = "Onshape Quest Viewer";
     const string CompanyName = "almostinventor";
     const string AndroidId = "com.almostinventor.onshapequestviewer";
-    const string Version = "1.0.0";
-    const int VersionCode = 1; // increase for every Quest release
+    const string Version = "1.1.0";
+    const int VersionCode = 2; // increase for every Quest release
 
     [MenuItem("QuestViewer/Setup Project and Scene")]
     public static void Run()
@@ -33,6 +33,7 @@ public static class QuestViewerSetup
         ConfigureOVR();
         ConfigurePlayerAndRendering();
         IncludeGltfShaders();
+        VoiceBuildSetup.DownloadModel();
         BuildScene();
         AssetDatabase.SaveAssets();
         Debug.Log("[QuestViewerSetup] Done.");
@@ -266,7 +267,6 @@ public static class QuestViewerSetup
         var partMat = ShaderMaterial("Part", "QuestViewer/Part");
         var xrayMat = ShaderMaterial("XRay", "QuestViewer/XRay");
         var hologramMat = ShaderMaterial("Hologram", "QuestViewer/Hologram");
-        var tapeMat = UnlitMaterial("Assets/QuestViewer/Materials/TapeLine.mat", new Color(1f, 0.85f, 0.3f));
         var cutMat = UnlitMaterial("Assets/QuestViewer/Materials/CutFrame.mat", new Color(1f, 0.55f, 0.25f));
 
         // 100 mm test cube, shown until the first model arrives.
@@ -295,14 +295,17 @@ public static class QuestViewerSetup
         model.AddComponent<ModelMotion>();
         model.AddComponent<Turntable>();
         model.AddComponent<TableSnap>();
-        new GameObject("ModelServer").AddComponent<ModelServer>().host = host;
+        var serverGo = new GameObject("ModelServer");
+        var server = serverGo.AddComponent<ModelServer>();
+        server.host = host;
+        var voice = serverGo.AddComponent<VoiceCommands>();
+        voice.server = server;
+        voice.host = host;
 
-        // Two-hand air pinch: Iron Man scaling, or the tape measure in MEASURE mode.
+        // Two-hand air pinch: Iron Man scaling (not in FIXED scale mode).
         var air = rig.AddComponent<TwoHandAir>();
         air.left = left;
         air.right = right;
-        air.head = centerEye;
-        air.lineMaterial = tapeMat;
         air.model = modelGrab;
         air.modelHost = host;
         air.placeholder = cubeGrab;
@@ -345,6 +348,7 @@ public static class QuestViewerSetup
         keypad.host = host;
         keypad.model = modelGrab;
         keypad.placeholder = cubeGrab;
+        voice.keypad = keypad;
 
         // Depth occlusion (standalone Quest): Meta's depth manager; the model shaders read it.
         var depthGo = new GameObject("DepthOcclusion");
