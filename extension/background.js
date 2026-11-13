@@ -142,6 +142,7 @@ async function pollCommands() {
     while (true) {
       const { base, pairCode } = await viewerSettings();
       if (!pairCode) return;
+      const started = Date.now();
       let r;
       try {
         r = await fetch(base + "/commands", { headers: { "X-Pair-Code": pairCode }, signal: AbortSignal.timeout(30000) });
@@ -149,11 +150,14 @@ async function pollCommands() {
         return; // viewer not running; the next ping from an Onshape tab tries again
       }
       if (!r.ok) return;
-      const { commands = [] } = await r.json().catch(() => ({}));
-      if (commands.includes("send")) {
+      const { commands } = await r.json().catch(() => ({}));
+      if (Array.isArray(commands) && commands.includes("send")) {
         const tab = await voiceTarget();
         if (tab) await send(tab);
       }
+      // The viewer holds each request up to 20 s; never poll faster than once a second, whatever answers.
+      const wait = 1000 - (Date.now() - started);
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
     }
   } finally {
     polling = false;

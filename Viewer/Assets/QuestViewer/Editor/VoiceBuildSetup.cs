@@ -15,6 +15,8 @@ public class VoiceBuildSetup : IPostGenerateGradleAndroidProject
     public const string ModelDir = "Assets/StreamingAssets/vosk-model";
     const string ModelName = "vosk-model-small-en-us-0.15";
     const string ModelUrl = "https://alphacephei.com/vosk/models/" + ModelName + ".zip";
+    // SHA-256 of the zip above; the download is rejected if it doesn't match.
+    const string ModelSha256 = "30f26242c4eb449f948e42cb302dd7a686cb29a3423a8367f99ff41780942498";
 
     public int callbackOrder => 100;
 
@@ -52,6 +54,16 @@ public class VoiceBuildSetup : IPostGenerateGradleAndroidProject
             using (var http = new System.Net.Http.HttpClient())
             using (var file = File.Create(zip))
                 http.GetStreamAsync(ModelUrl).Result.CopyTo(file);
+
+            string hash;
+            using (var sha = System.Security.Cryptography.SHA256.Create())
+            using (var file = File.OpenRead(zip))
+                hash = System.BitConverter.ToString(sha.ComputeHash(file)).Replace("-", "").ToLowerInvariant();
+            if (hash != ModelSha256)
+            {
+                Debug.LogError($"[Voice] Downloaded model has SHA-256 {hash}, expected {ModelSha256}. Not installed.");
+                return;
+            }
 
             EditorUtility.DisplayProgressBar("Voice model", "Unpacking", 0.8f);
             if (Directory.Exists(unpack)) Directory.Delete(unpack, true);

@@ -129,6 +129,12 @@ PC keyboard: **R** brings the model in front of you at 100%, **[** / **]** make 
 - It limits requests to 200 MB, times out stalled connections after 20 seconds, and accepts at most 8 connections
   at a time.
 - The PC version listens only on `127.0.0.1`; the Quest version listens on your local network.
+- While an Onshape tab is open, the extension keeps a request open to the viewer address so a voice command can ask
+  it to send. A send started this way goes only to that same address, like a click, and shows the same badge on the
+  toolbar icon. Because the connection is unencrypted, a device that took over the viewer's address on your network
+  could also see the pairing code and ask for sends.
+- Voice recognition runs on the device; no audio is sent anywhere. The voice model download is checked against a
+  fixed SHA-256 hash.
 - The extension reads from Onshape only through read (GET) requests made with your existing browser session, and
   sends the model only to the viewer address you entered. It stores the viewer address and pairing code in
   `chrome.storage.sync`, which Chrome syncs across your devices if Chrome sync is on. It does not use or store
